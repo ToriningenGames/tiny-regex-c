@@ -38,7 +38,7 @@
 #define MAX_CHAR_CLASS_LEN      40    /* Max length of character-class buffer in.   */
 
 
-enum { UNUSED, DOT, BEGIN, END, QUESTIONMARK, STAR, PLUS, CHAR, CHAR_CLASS, INV_CHAR_CLASS, DIGIT, NOT_DIGIT, ALPHA, NOT_ALPHA, WHITESPACE, NOT_WHITESPACE, /* BRANCH */ };
+enum { UNUSED, DOT, BEGIN, END, QUESTIONMARK, STAR, PLUS, CHAR, CHAR_CLASS, INV_CHAR_CLASS, DIGIT, NOT_DIGIT, ALPHA, NOT_ALPHA, WHITESPACE, NOT_WHITESPACE, BRANCH };
 
 typedef struct regex_t
 {
@@ -130,7 +130,7 @@ re_t re_compile(const char* pattern)
       case '*': {    re_compiled[j].type = STAR;            } break;
       case '+': {    re_compiled[j].type = PLUS;            } break;
       case '?': {    re_compiled[j].type = QUESTIONMARK;    } break;
-/*    case '|': {    re_compiled[j].type = BRANCH;          } break; <-- not working properly */
+      case '|': {    re_compiled[j].type = BRANCH;          } break; /* <-- not working properly */
 
       /* Escaped character-classes (\s \w ...): */
       case '\\':
@@ -408,8 +408,6 @@ static int matchplus(regex_t p, regex_t* pattern, const char* text, int* matchle
 
 static int matchquestion(regex_t p, regex_t* pattern, const char* text, int* matchlength)
 {
-  if (p.type == UNUSED)
-    return 1;
   if (*text && matchone(p, *text))
   {
     if (matchpattern(pattern, text+1, matchlength))
@@ -425,6 +423,37 @@ static int matchquestion(regex_t p, regex_t* pattern, const char* text, int* mat
   return 0;
 }
 
+static int matchbranch(regex_t* p, regex_t* pattern, const char* text, int* matchlength)
+{
+  int firstlen = 0;
+  if (matchpattern(pattern, text, matchlength))
+  {
+    return 1;
+  }
+  if (!matchpattern(p, text, &firstlen))
+  {
+    return 0;
+  }
+  text += firstlen;
+  /* Skip alternates */
+  pattern--;
+  do
+  {
+    pattern += 2;
+    if (pattern[0].type == QUESTIONMARK || pattern[0].type == STAR || pattern[0].type == PLUS)
+    {
+      pattern++;
+    }
+  }
+  while (pattern[0].type == BRANCH);
+  if (matchpattern(pattern, text, matchlength))
+  {
+    *matchlength += firstlen;
+    return 1;
+  }
+  return 0;
+}
+
 #if 0
 
 /* Recursive matching */
@@ -433,7 +462,7 @@ static int matchpattern(regex_t* pattern, const char* text, int *matchlength)
   int pre = *matchlength;
   if ((pattern[0].type == UNUSED) || (pattern[1].type == QUESTIONMARK))
   {
-    return matchquestion(pattern[1], &pattern[2], text, matchlength);
+    return matchquestion(pattern[0], &pattern[2], text, matchlength);
   }
   else if (pattern[1].type == STAR)
   {
@@ -465,9 +494,28 @@ static int matchpattern(regex_t* pattern, const char* text, int *matchlength)
 static int matchpattern(regex_t* pattern, const char* text, int* matchlength)
 {
   int pre = *matchlength;
+  int branchOption;
   do
   {
-    if ((pattern[0].type == UNUSED) || (pattern[1].type == QUESTIONMARK))
+    if (pattern[0].type == UNUSED)
+    {
+      return 1;
+    }
+    else if (pattern[2].type == BRANCH && (pattern[1].type == QUESTIONMARK || pattern[1].type == STAR || pattern[1].type == PLUS))
+    {
+      pattern[2].type = UNUSED;
+      branchOption = matchbranch(pattern, &pattern[3], text, matchlength);
+      pattern[2].type = BRANCH;
+      return branchOption;
+    }
+    else if (pattern[1].type == BRANCH)
+    {
+      pattern[1].type = UNUSED;
+      branchOption = matchbranch(pattern, &pattern[2], text, matchlength);
+      pattern[1].type = BRANCH;
+      return branchOption;
+    }
+    else if (pattern[1].type == QUESTIONMARK)
     {
       return matchquestion(pattern[0], &pattern[2], text, matchlength);
     }
@@ -483,13 +531,7 @@ static int matchpattern(regex_t* pattern, const char* text, int* matchlength)
     {
       return (text[0] == '\0');
     }
-/*  Branching is not working properly
-    else if (pattern[1].type == BRANCH)
-    {
-      return (matchpattern(pattern, text) || matchpattern(&pattern[2], text));
-    }
-*/
-  (*matchlength)++;
+    (*matchlength)++;
   }
   while ((text[0] != '\0') && matchone(*pattern++, *text++));
 

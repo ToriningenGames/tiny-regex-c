@@ -14,6 +14,7 @@
  *   '*'        Asterisk, match zero or more (greedy)
  *   '+'        Plus, match one or more (greedy)
  *   '?'        Question, match zero or one (greedy)
+ *   `a|b`      Pipe, match either of {'a', 'b'} -- NOTE: feature behaves nonstandard!
  *   '[abc]'    Character class, match if one of {'a', 'b', 'c'}
  *   '[^abc]'   Inverted class, match if NOT one of {'a', 'b', 'c'} -- NOTE: feature is currently broken!
  *   '[a-zA-Z]' Character ranges, the character set of the ranges { a-z | A-Z }

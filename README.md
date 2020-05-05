@@ -10,7 +10,9 @@ Supports a subset of the syntax and semantics of the Python standard library imp
 ### Current status
 All supported regex-operators seem to work properly according to the test-set, with the following exception:
 
-There is a problem with ranges (e.g. `[0-9]` for a digit 0-9) combined with inverted character-cases, e.g. `[^ab]` for anything but 'a' or 'b' - like `[^-0-9]` for anything not '-' or a digit 0-9. I think the code matches too broadly in that case. 
+There is a problem with ranges (e.g. `[0-9]` for a digit 0-9) combined with inverted character-cases, e.g. `[^ab]` for anything but 'a' or 'b' - like `[^-0-9]` for anything not '-' or a digit 0-9. I think the code mathces too broadly in that case. 
+
+Branches (`|`) only apply to adjacent characters. Symbols apply to those characters (e.g. `a+|b+` will match 'aaa' or 'bbb', and `a+|b+c` will match 'aaac' and 'bbbc', but not 'aaa'). This diverges from the Python standard.
 
 I think you should test the patterns you are going to use. You can easily modify the test-harness to generate tests for your intended patterns to check for compliance.
 
@@ -20,7 +22,7 @@ I think you should test the patterns you are going to use. You can easily modify
 The main design goal of this library is to be small, correct, self contained and use few resources while retaining acceptable performance and feature completeness. Clarity of the code is also highly valued.
 
 ### Notable features and omissions
-- Small code and binary size: 500 SLOC, ~3kb binary for x86. Statically #define'd memory usage / allocation.
+- Small code and binary size: <550 SLOC, ~3.5kb binary for x86. Statically #define'd memory usage / allocation.
 - No use of dynamic memory allocation (i.e. no calls to `malloc` / `free`).
 - To avoid call-stack exhaustion, iterative searching is preferred over recursive by default.
 - No support for capturing groups or named capture: `(^P<name>group)` etc.
@@ -31,7 +33,7 @@ The main design goal of this library is to be small, correct, self contained and
   > gcc -Os -c re.c
   > size re.o
       text     data     bss     dec     hex filename
-      2424      160     544    3124     c38 re.o
+      2708      160     544    3412     d54 re.o
       
   ```
 
@@ -59,13 +61,15 @@ The following features / regex-operators are supported by this library.
 NOTE: inverted character classes are buggy - see the test harness for concrete examples.
 
 
-  -  `.`         Dot, matches any character
-  -  `^`         Start anchor, matches beginning of string
-  -  `$`         End anchor, matches end of string
-  -  `*`         Asterisk, match zero or more (greedy)
-  -  `+`         Plus, match one or more (greedy)
-  -  `?`         Question, match zero or one (greedy)
-  -  `[abc]`     Character class, match if one of {'a', 'b', 'c'}
+  -  `.`        Dot, matches any character
+  -  `^`        Start anchor, matches beginning of string
+  -  `$`        End anchor, matches end of string
+  -  `*`        Asterisk, match zero or more (greedy)
+  -  `+`        Plus, match one or more (greedy)
+  -  `?`        Question, match zero or one (greedy)
+  -  `a|b`      Pipe, match either of {'a', 'b'}
+  **`NOTE: This feature is currently different from other regex flavors!`**
+  -  `[abc]`    Character class, match if one of {'a', 'b', 'c'}
   -  `[^abc]`   Inverted class, match if NOT one of {'a', 'b', 'c'}
   **`NOTE: This feature is currently broken for some usage of character ranges!`**
   -  `[a-zA-Z]` Character ranges, the character set of the ranges { a-z | A-Z }
@@ -117,7 +121,7 @@ For more usage examples I encourage you to look at the code in the `tests`-folde
 ### FAQ
 - *Q: What differentiates this library from other C regex implementations?*
 
-  A: Well, the small size for one. 500 lines of C-code compiling to 2-3kb ROM, using very little RAM.
+  A: Well, the small size for one. <550 lines of C-code compiling to 2-3kb ROM, using very little RAM.
 
 ### License
 All material in this repository is in the public domain.
